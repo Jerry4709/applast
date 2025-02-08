@@ -158,14 +158,20 @@ class _RoomListScreenState extends State<RoomListScreen> {
       final prefs = await SharedPreferences.getInstance();
       final String? token = prefs.getString('jwt_token');
 
-      // 1. เปลี่ยนเป็น POST และส่ง userId ใน query parameter
-      final response = await http.post(
+      if (token == null) {
+        setState(() {
+          _errorMessage = 'Token is missing.';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final response = await http.delete(
         url,
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({}),
       );
 
       if (response.statusCode == 200) {
@@ -185,29 +191,25 @@ class _RoomListScreenState extends State<RoomListScreen> {
         );
 
         // ส่ง WebSocket Event
-        if (_channel != null && _channel.sink != null) {
-          _channel.sink.add(jsonEncode({
-            'event': 'room_left',
-            'roomId': room['_id'],
-            'userId': _userId,
-          }));
-        }
+        _channel.sink.add(jsonEncode({
+          'event': 'room_left',
+          'roomId': room['_id'],
+          'userId': _userId,
+        }));
       } else {
-        // กรณี Error 500: แสดง Popup และรีเฟรช
         _showErrorPopup(
-          'ออกจากห้องสำเร็จ!!',
-          'ระบบออกจากห้องสำเร็จ\n'
-              'หน้าจอจะรีเฟรชใหม่โดยอัตโนมัติ',
+          'เกิดข้อผิดพลาด',
+          'ไม่สามารถออกจากห้องได้: ${response.body}',
         );
       }
     } catch (error) {
-      // แสดง Popup สำหรับ Exception
       _showErrorPopup(
         '⚠️ เกิดข้อผิดพลาด',
         'ไม่สามารถออกจากห้องได้: ${error.toString()}',
       );
     }
   }
+
 
 
 
